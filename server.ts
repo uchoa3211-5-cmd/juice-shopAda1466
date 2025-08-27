@@ -16,6 +16,7 @@ import express from 'express'
 import colors from 'colors/safe'
 import serveIndex from 'serve-index'
 import bodyParser from 'body-parser'
+import rateLimit from 'express-rate-limit'
 // @ts-expect-error FIXME due to non-existing type definitions for finale-rest
 import * as finale from 'finale-rest'
 import compression from 'compression'
@@ -609,7 +610,13 @@ restoreOverwrittenFilesWithOriginals().then(() => {
   app.get('/rest/chatbot/status', chatbot.status())
   app.post('/rest/chatbot/respond', chatbot.process())
   /* NoSQL API endpoints */
-  app.get('/rest/products/:id/reviews', showProductReviews())
+  const reviewsLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false // Disable the `X-RateLimit-*` headers
+  })
+  app.get('/rest/products/:id/reviews', reviewsLimiter, showProductReviews())
   app.put('/rest/products/:id/reviews', createProductReviews())
   app.patch('/rest/products/reviews', security.isAuthorized(), updateProductReviews())
   app.post('/rest/products/reviews', security.isAuthorized(), likeProductReviews())
